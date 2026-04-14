@@ -13,30 +13,57 @@ export type ChatMessage = { role: ChatRole; content: string }
 export async function sendMathMessage(
   history: ChatMessage[],
 ): Promise<string> {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-  const base =
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY?.trim()
+  const base = (
     import.meta.env.VITE_OPENAI_BASE_URL || 'https://api.openai.com/v1'
-  const model = import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini'
+  ).trim()
+  const model = (
+    import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini'
+  ).trim()
 
   if (!apiKey) {
     return mockMathResponse(history[history.length - 1]?.content ?? '')
   }
 
-  const res = await fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: MATH_SYSTEM_PROMPT },
-        ...history.map((m) => ({ role: m.role, content: m.content })),
-      ],
-      temperature: 0.35,
-    }),
-  })
+  const url = `${base.replace(/\/$/, '')}/chat/completions`
+  // Local models can be slow on first run; avoid an indefinite "Thinking…" with no feedback.
+  const timeoutMs = 180_000
+  const controller = new AbortController()
+  const t = window.setTimeout(() => controller.abort(), timeoutMs)
+
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: [
+          { role: 'system', content: MATH_SYSTEM_PROMPT },
+          ...history.map((m) => ({ role: m.role, content: m.content })),
+        ],
+        temperature: 0.35,
+      }),
+    })
+  } catch (e) {
+    const aborted =
+      e instanceof DOMException
+        ? e.name === 'AbortError'
+        : e instanceof Error && e.name === 'AbortError'
+    if (aborted) {
+      throw new Error(
+        `No response after ${timeoutMs / 1000}s. Is Ollama running (ollama serve)? For large models, the first answer can take several minutes — try again or use a smaller model tag.`,
+      )
+    }
+    throw e
+  } finally {
+    window.clearTimeout(t)
+  }
 
   if (!res.ok) {
     const detail = await res.text()
@@ -44,9 +71,15 @@ export async function sendMathMessage(
   }
 
   const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>
+    choices?: Array<{
+      message?: { content?: string | null; reasoning?: string | null }
+    }>
   }
-  const text = data.choices?.[0]?.message?.content
+  const msg = data.choices?.[0]?.message
+  const text =
+    (msg?.content && String(msg.content).trim()) ||
+    (msg?.reasoning && String(msg.reasoning).trim()) ||
+    ''
   if (!text) throw new Error('Empty response from model')
   return text
 }

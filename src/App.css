@@ -130,6 +130,18 @@
   font-style: italic;
 }
 
+.bubble.thinking .thinking-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  font-style: normal;
+  opacity: 0.95;
+  line-height: 1.35;
+}
+
+.bubble.thinking .thinking-hint code {
+  font-size: 0.8em;
+}
+
 .bubble-role {
   display: block;
   font-size: 0.72rem;

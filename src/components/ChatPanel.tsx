@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChatMessage } from '../lib/mathChat'
 import { sendMathMessage } from '../lib/mathChat'
+import { stripMathDelimitersForDisplay } from '../lib/stripMathDelimiters'
 import { CalculatorModal } from './CalculatorModal'
 import { MathKeyboard } from './MathKeyboard'
 
@@ -17,7 +18,17 @@ export function ChatPanel() {
   const [error, setError] = useState<string | null>(null)
   const [calcOpen, setCalcOpen] = useState(false)
   const [mathKeysOpen, setMathKeysOpen] = useState(false)
+  const [slowHint, setSlowHint] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (!loading) {
+      setSlowHint(false)
+      return
+    }
+    const id = window.setTimeout(() => setSlowHint(true), 12_000)
+    return () => window.clearTimeout(id)
+  }, [loading])
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
@@ -76,25 +87,41 @@ export function ChatPanel() {
 
       <div className="chat-body">
         <ul className="message-list" aria-live="polite">
-          {messages.map((m, i) => (
-            <li
-              key={i}
-              className={`bubble ${m.role === 'user' ? 'user' : 'assistant'}`}
-            >
-              <span className="bubble-role">
-                {m.role === 'user' ? 'You' : 'EquationAI'}
-              </span>
-              <div className="bubble-content">
-                {m.content.split('\n').map((line, j) => (
-                  <p key={j}>{line}</p>
-                ))}
-              </div>
-            </li>
-          ))}
+          {messages.map((m, i) => {
+            const raw = m.content
+            const shown =
+              m.role === 'assistant'
+                ? stripMathDelimitersForDisplay(raw)
+                : raw
+            return (
+              <li
+                key={i}
+                className={`bubble ${m.role === 'user' ? 'user' : 'assistant'}`}
+              >
+                <span className="bubble-role">
+                  {m.role === 'user' ? 'You' : 'EquationAI'}
+                </span>
+                <div className="bubble-content">
+                  {shown.split('\n').map((line, j) => (
+                    <p key={j}>{line}</p>
+                  ))}
+                </div>
+              </li>
+            )
+          })}
           {loading && (
             <li className="bubble assistant thinking" aria-busy="true">
               <span className="bubble-role">EquationAI</span>
               <p>Thinking…</p>
+              {slowHint && (
+                <p className="thinking-hint">
+                  Still working — can take up to several
+                  minutes. If
+                  nothing changes for three minutes, check the red error line
+                  below or the browser Network tab for{' '}
+                  <code>chat/completions</code>.
+                </p>
+              )}
             </li>
           )}
         </ul>
