@@ -45,7 +45,7 @@ export function MathKeyboard({
   inputRef,
   visible,
 }: {
-  inputRef: RefObject<HTMLTextAreaElement | null>
+  inputRef: RefObject<HTMLTextAreaElement | HTMLInputElement | null>
   visible: boolean
 }) {
   if (!visible) return null

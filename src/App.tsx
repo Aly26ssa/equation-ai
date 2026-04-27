@@ -96,8 +96,10 @@ function App() {
                   </svg>
                 </span>
                 <span className="sidebar-nav-label">AP Exam Hub</span>
+                <span className="sidebar-new-badge" aria-label="New">
+                  New!
+                </span>
               </button>
-              <span className="sidebar-new-badge">New!</span>
             </li>
           </ul>
         </nav>

@@ -19,7 +19,7 @@ export function ChatPanel() {
   const [calcOpen, setCalcOpen] = useState(false)
   const [mathKeysOpen, setMathKeysOpen] = useState(false)
   const [slowHint, setSlowHint] = useState(false)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!loading) {
@@ -143,10 +143,9 @@ export function ChatPanel() {
       <form className="composer" onSubmit={handleSend}>
         <MathKeyboard inputRef={inputRef} visible={mathKeysOpen} />
         <div className="composer-chatbox">
-          <textarea
+          <input
             ref={inputRef}
             className="composer-input"
-            rows={3}
             placeholder="Type a math question…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
